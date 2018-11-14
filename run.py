@@ -24,6 +24,10 @@ TESTS = [
     {
         "name": "crop",
         "cmd": "-filter:v crop=iw/2:ih/2:iw/4:ih/4"
+    },
+    {
+        "name": "crop_optimize",
+        "cmd": "-filter_complex '[0:v] scale=-1:200[s];[s] split [gen][use];[gen] palettegen=stats_mode=full [palette];[use][palette] paletteuse'"
     }
 ]
 
@@ -36,11 +40,10 @@ def run_tests(file_path):
         print("%d of %d (%s)" % (i+1, num_tests, test_data["name"]))
         
         ffmpeg_path = args.ffmpeg if args.ffmpeg else "ffmpeg"
-
         base_name = os.path.basename(file_path)
         file_name, ext = os.path.splitext(base_name)
         dest_path = "%s/%s_%s%s" % (OUTPUT_PATH, file_name, test_data["name"], ext)
-        full_cmd = "%s -i %s %s -y %s" % (ffmpeg_path, file_path, test_data["cmd"], dest_path)
+        full_cmd = "%s -loglevel debug -i %s %s -y %s" % (ffmpeg_path, file_path, test_data["cmd"], dest_path)
 
         if args.verbose:
             subprocess.call(full_cmd, shell=True)

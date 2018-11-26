@@ -2,6 +2,8 @@ import os
 from argparse import ArgumentParser
 import subprocess
 import shutil
+import sys
+import time
 
 #### CLI ARGS #################################
 
@@ -15,6 +17,7 @@ args = parser.parse_args()
 MEDIA_PATH = "./media/"
 OUTPUT_PATH = "./output"
 DEV_NULL = open(os.devnull, 'wb')
+TIMEOUT_SEC = 10
 
 TESTS = [
     {
@@ -37,25 +40,40 @@ def run_tests(file_path):
     num_tests = len(TESTS)
 
     for i, test_data in enumerate(TESTS):
-        print("%d of %d (%s)" % (i+1, num_tests, test_data["name"]))
-        
+        sys.stdout.write("%d of %d (%s): " % (i+1, num_tests, test_data["name"]))
+
         ffmpeg_path = args.ffmpeg if args.ffmpeg else "ffmpeg"
         base_name = os.path.basename(file_path)
         file_name, ext = os.path.splitext(base_name)
         dest_path = "%s/%s_%s%s" % (OUTPUT_PATH, file_name, test_data["name"], ext)
         full_cmd = "%s -loglevel debug -i %s %s -y %s" % (ffmpeg_path, file_path, test_data["cmd"], dest_path)
 
+        task = None
+
         if args.verbose:
-            subprocess.call(full_cmd, shell=True)
+            task = subprocess.Popen(full_cmd, shell=True)
         else:
-            subprocess.call(full_cmd, shell=True, stderr=DEV_NULL, stdout=DEV_NULL)
+            task = subprocess.Popen(full_cmd, shell=True, stderr=DEV_NULL, stdout=DEV_NULL)
+
+        delay = .01
+        time_elapsed = 0
+
+        while task.poll() is None and time_elapsed < TIMEOUT_SEC:
+            time.sleep(delay)
+            time_elapsed += delay
+
+        if task.poll() is None:
+            task.terminate()
+            sys.stdout.write("FAILED (timed out)\n")
+        else:
+            sys.stdout.write("SUCCESS\n")
 
 
 #### MAIN #####################################
 
 # Delete anything in the output dir
 if os.path.isdir(OUTPUT_PATH):
-    shutil.rmtree(OUTPUT_PATH) 
+    shutil.rmtree(OUTPUT_PATH)
 
 os.mkdir(OUTPUT_PATH)
 

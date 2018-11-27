@@ -39,8 +39,10 @@ TESTS = [
 def run_tests(file_path):
     num_tests = len(TESTS)
 
+    failures = []
+
     for i, test_data in enumerate(TESTS):
-        sys.stdout.write("%d of %d (%s): " % (i+1, num_tests, test_data["name"]))
+        output_string = "%d of %d (%s): " % (i+1, num_tests, test_data["name"])
 
         ffmpeg_path = args.ffmpeg if args.ffmpeg else "ffmpeg"
         base_name = os.path.basename(file_path)
@@ -64,9 +66,13 @@ def run_tests(file_path):
 
         if task.poll() is None:
             task.terminate()
-            sys.stdout.write("FAILED (timed out)\n")
+            output_string += "FAILED (timed out)"
+            failures.append(output_string)
         else:
-            sys.stdout.write("SUCCESS\n")
+            output_string += "SUCCESS"
+
+        print(output_string)
+    return failures
 
 
 #### MAIN #####################################
@@ -77,15 +83,28 @@ if os.path.isdir(OUTPUT_PATH):
 
 os.mkdir(OUTPUT_PATH)
 
-files = os.listdir(MEDIA_PATH)
+total_failures = []
 
-for file_name in files:
-    file_path = MEDIA_PATH + file_name
+tests_run = 0
 
-    print("-- Running Tests for %s --" % (file_path))
-    
-    run_tests(file_path)
+for path, subdirs, files in os.walk(MEDIA_PATH):
+    for file_name in files:
+        file_path = os.path.join(path, file_name)
 
-    print("")
-    print("")
+        print("-- Running Tests for %s --" % (file_path))
 
+        total_failures += run_tests(file_path)
+        tests_run += len(TESTS)
+
+        print("")
+        print("")
+
+print("----------------------------------------")
+print("")
+print("")
+
+print("-- Results: ran %d tests, %d failures --" % (tests_run, len(total_failures)))
+
+if len(total_failures) > 0:
+    for failure in total_failures:
+        print(failure)

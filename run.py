@@ -2,6 +2,8 @@ import os
 from argparse import ArgumentParser
 import subprocess
 import shutil
+import sys
+import time
 
 #### CLI ARGS #################################
 
@@ -15,6 +17,7 @@ args = parser.parse_args()
 MEDIA_PATH = "./media/"
 OUTPUT_PATH = "./output"
 DEV_NULL = open(os.devnull, 'wb')
+TIMEOUT_SEC = 10
 
 TESTS = [
     {
@@ -36,38 +39,74 @@ TESTS = [
 def run_tests(file_path):
     num_tests = len(TESTS)
 
+    failures = []
+
     for i, test_data in enumerate(TESTS):
-        print("%d of %d (%s)" % (i+1, num_tests, test_data["name"]))
-        
+        output_string = "%d of %d (%s): " % (i+1, num_tests, test_data["name"])
+
         ffmpeg_path = args.ffmpeg if args.ffmpeg else "ffmpeg"
         base_name = os.path.basename(file_path)
         file_name, ext = os.path.splitext(base_name)
         dest_path = "%s/%s_%s%s" % (OUTPUT_PATH, file_name, test_data["name"], ext)
         full_cmd = "%s -loglevel debug -i %s %s -y %s" % (ffmpeg_path, file_path, test_data["cmd"], dest_path)
 
+        task = None
+
         if args.verbose:
-            subprocess.call(full_cmd, shell=True)
+            task = subprocess.Popen(full_cmd, shell=True)
         else:
-            subprocess.call(full_cmd, shell=True, stderr=DEV_NULL, stdout=DEV_NULL)
+            task = subprocess.Popen(full_cmd, shell=True, stderr=DEV_NULL, stdout=DEV_NULL)
+
+        delay = .01
+        time_elapsed = 0
+
+        while task.poll() is None and time_elapsed < TIMEOUT_SEC:
+            time.sleep(delay)
+            time_elapsed += delay
+
+        if task.poll() is None:
+            task.terminate()
+            output_string += "FAILED (timed out)"
+            failures.append(output_string)
+        else:
+            output_string += "SUCCESS"
+
+        print(output_string)
+    return failures
 
 
 #### MAIN #####################################
 
 # Delete anything in the output dir
 if os.path.isdir(OUTPUT_PATH):
-    shutil.rmtree(OUTPUT_PATH) 
+    shutil.rmtree(OUTPUT_PATH)
 
 os.mkdir(OUTPUT_PATH)
 
-files = os.listdir(MEDIA_PATH)
+total_failures = []
 
-for file_name in files:
-    file_path = MEDIA_PATH + file_name
+tests_run = 0
 
-    print("-- Running Tests for %s --" % (file_path))
-    
-    run_tests(file_path)
+for path, subdirs, files in os.walk(MEDIA_PATH):
+    for file_name in files:
+        file_path = os.path.join(path, file_name)
 
-    print("")
-    print("")
+        print("-- Running Tests for %s --" % (file_path))
 
+        failures = run_tests(file_path)
+        for failure in failures:
+            total_failures.append("(%s) %s" % (file_path, failure))
+        tests_run += len(TESTS)
+
+        print("")
+        print("")
+
+print("----------------------------------------")
+print("")
+print("")
+
+print("-- Results: ran %d tests, %d failures --" % (tests_run, len(total_failures)))
+
+if len(total_failures) > 0:
+    for failure in total_failures:
+        print(failure)

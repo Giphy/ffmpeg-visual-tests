@@ -93,7 +93,9 @@ for path, subdirs, files in os.walk(MEDIA_PATH):
 
         print("-- Running Tests for %s --" % (file_path))
 
-        total_failures += run_tests(file_path)
+        failures = run_tests(file_path)
+        for failure in failures:
+            total_failures.append("(%s) %s" % (file_path, failure))
         tests_run += len(TESTS)
 
         print("")

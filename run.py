@@ -49,9 +49,19 @@ def output_results_html(results, dest):
         
         grouped_results[test_name].append(r)
 
-    content = ''
+    content = '<h1>Tests Run</h1>'
+
+    content += '<ul>'
 
     for test_name in grouped_results.keys():
+        content += '<li><a href="#%s">%s</a></li>' % (test_name, test_name)
+        
+    content += '</ul>'
+
+    for test_name in grouped_results.keys():
+        content += '<a name="%s"></a>' % test_name
+        content += '<h1>%s</h1>' % test_name
+
         for r in grouped_results[test_name]:
             content += '''
                 <div>

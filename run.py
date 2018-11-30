@@ -29,7 +29,7 @@ TESTS = [
         "cmd": "-filter:v crop=iw/2:ih/2:iw/4:ih/4"
     },
     {
-        "name": "crop_optimize",
+        "name": "resize_optimize",
         "cmd": "-filter_complex '[0:v] scale=-1:200[s];[s] split [gen][use];[gen] palettegen=stats_mode=full [palette];[use][palette] paletteuse'"
     }
 ]
